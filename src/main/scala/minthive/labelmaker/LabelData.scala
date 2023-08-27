@@ -1,0 +1,204 @@
+package minthive.labelmaker
+
+import cats.data.ValidatedNec
+import cats.effect.SyncIO
+import cats.syntax.all.*
+import com.github.tototoshi.csv.CSVReader
+import com.itextpdf.io.image.ImageDataFactory
+import com.itextpdf.kernel.font.PdfFont
+import com.itextpdf.kernel.geom.{PageSize, Rectangle}
+import com.itextpdf.kernel.pdf.canvas.PdfCanvas
+import com.itextpdf.kernel.pdf.{PdfDocument, PdfPage}
+import com.itextpdf.layout.Document
+import com.itextpdf.layout.element.{Paragraph, Text}
+import com.itextpdf.layout.properties.{TextAlignment, VerticalAlignment}
+
+import java.nio.file.Path
+
+
+/** Data to be printed on the label. */
+case class LabelData(
+  deviceName: String,
+  conditionScore: OneToTenScore,
+  batteryScore: Percentage,
+  repairScore: OneToTenScore,
+  functionalityScore: OneToTenScore,
+  appearanceScore: AppearanceScore,
+  historyUrl: String,
+  leftBarCode: String,
+  rightBarCode: String,
+) {
+  def render(doc: Document, page: PdfPage)(using fonts: Fonts): SyncIO[Unit] = {
+    given Document = doc
+    given PdfPage = page
+
+    for {
+      canvas <- SyncIO(new PdfCanvas(page))
+      given PdfCanvas = canvas
+      _ <- SyncIO(doc.showTextAligned(
+        new Paragraph().add(new Text(deviceName).setFont(fonts.bold).setFontSize(10)).setMultipliedLeading(1.4f),
+        Mm(5), topY(Mm(5)), TextAlignment.LEFT, VerticalAlignment.TOP
+      ))
+      _ <- SyncIO(canvas.addImageFittedIntoRectangle(
+        LabelData.ImageLogo,
+        new Rectangle(rightX(Mm(5f + 36.8f)), topY(Mm(6f + 8.2f)), Mm(36.8), Mm(8.2)), false
+      ))
+      _ <- SyncIO(doc.showTextAligned(
+        new Paragraph().add(new Text("Minthive pass").setFont(fonts.bold).setFontSize(22)),
+        Mm(5), topY(Mm(18.2)), TextAlignment.LEFT, VerticalAlignment.TOP
+      ))
+      h2FontSize = 14f
+      _ <- SyncIO(doc.showTextAligned(
+        new Paragraph().add(new Text("Overall device condition:").setFont(fonts.bold).setFontSize(h2FontSize)),
+        Mm(5), topY(Mm(28.8)), TextAlignment.LEFT, VerticalAlignment.TOP
+      ))
+      conditionScoreIndicatorY = topY(Mm(32))
+      _ <- drawPercentageIndicator(
+        rightX(Mm(20)), conditionScoreIndicatorY, radius = Mm(28.9f / 2), width = Mm(3.2), conditionScore.percentage,
+        conditionScore.asString, belowText = None
+      )
+      _ <- drawDeviceConditionBar(
+        Mm(5.4f + 4.1f), conditionScoreIndicatorY - Mm(6.5), buttonWidth = Mm(8.2), buttonHeight = Mm(3.9),
+        borderWidth = Mm(0.4), conditionScore
+      )
+      scoreBreakdownY = topY(Mm(60))
+      _ <- SyncIO(doc.showTextAligned(
+        new Paragraph().add(new Text("Condition score breakdown:").setFont(fonts.bold).setFontSize(h2FontSize)),
+        Mm(5), scoreBreakdownY, TextAlignment.LEFT, VerticalAlignment.TOP
+      ))
+      scoreBreakdownIndicatorsDiameter = Mm(13.2f)
+      scoreBreakdownIndicatorsRadius = scoreBreakdownIndicatorsDiameter / 2
+      scoreBreakdownIndicatorsLeft = Mm(7.5f) + scoreBreakdownIndicatorsRadius
+      scoreBreakdownIndicatorsSpacing = Mm(12.73)
+      scoreBreakdownIndicatorsY = scoreBreakdownY - Mm(15)
+      _ <- drawPercentageIndicator(
+        scoreBreakdownIndicatorsLeft, scoreBreakdownIndicatorsY, radius = scoreBreakdownIndicatorsRadius,
+        width = Mm(1.5), batteryScore,
+        f"${(batteryScore.value * 100).round}%d%%", belowText = Some("Battery score")
+      )
+      _ <- drawPercentageIndicator(
+        scoreBreakdownIndicatorsLeft + (scoreBreakdownIndicatorsDiameter + scoreBreakdownIndicatorsSpacing) * 1,
+        scoreBreakdownIndicatorsY, radius = scoreBreakdownIndicatorsRadius, width = Mm(1.5),
+        appearanceScore.toPercentage, appearanceScore.asString, belowText = Some("Appearance\nscore")
+      )
+      _ <- drawPercentageIndicator(
+        scoreBreakdownIndicatorsLeft + (scoreBreakdownIndicatorsDiameter + scoreBreakdownIndicatorsSpacing) * 2,
+        scoreBreakdownIndicatorsY, radius = scoreBreakdownIndicatorsRadius, width = Mm(1.5),
+        repairScore.percentage, repairScore.asString, belowText = Some("Repair score")
+      )
+      _ <- drawPercentageIndicator(
+        scoreBreakdownIndicatorsLeft + (scoreBreakdownIndicatorsDiameter + scoreBreakdownIndicatorsSpacing) * 3,
+        scoreBreakdownIndicatorsY, radius = scoreBreakdownIndicatorsRadius, width = Mm(1.5),
+        functionalityScore.percentage, functionalityScore.asString, belowText = Some("Functionality\nscore")
+      )
+      evaluationLabelY = scoreBreakdownIndicatorsY - Mm(18)
+      _ <- SyncIO(doc.showTextAligned(
+        new Paragraph().add(new Text("Minthive evaluation").setFont(fonts.bold).setFontSize(h2FontSize)),
+        Mm(5), evaluationLabelY, TextAlignment.LEFT, VerticalAlignment.TOP
+      ))
+      textFontSize = 8f
+      _ <- SyncIO {
+        def text(str: String, font: PdfFont = fonts.normal) =
+          new Text(str).setFont(font).setFontSize(textFontSize)
+
+        doc.showTextAligned(
+          new Paragraph()
+            .add(text("All devices with "))
+            .add(text("Minthive Label", fonts.bold))
+            .add(text(" were\nevaluated by professionals and score is\ngenerated based on "))
+            .add(text("device battery").setUnderline())
+            .add(text(" and \n"))
+            .add(text("functionality").setUnderline())
+            .add(text(" statuses, "))
+            .add(text("appearance").setUnderline())
+            .add(text("\nand "))
+            .add(text("repair history").setUnderline())
+            .add(text("."))
+            .setMultipliedLeading(1.2f)
+          ,
+          Mm(5), evaluationLabelY - Mm(7), TextAlignment.LEFT, VerticalAlignment.TOP
+        )
+      }
+      qrCodeSize = Mm(16.8)
+      qrCodeCenterX = rightX(Mm(15f) + qrCodeSize / 2)
+      qrCodeCenterY = evaluationLabelY - Mm(2.5f) - qrCodeSize / 2
+      _ <- addQrCode(historyUrl, qrCodeCenterX, qrCodeCenterY, qrCodeSize, qrCodeSize)
+      _ <- SyncIO(doc.showTextAligned(
+        new Paragraph("CHECK HISTORY").setFont(fonts.bold).setFontSize(10),
+        qrCodeCenterX, qrCodeCenterY - qrCodeSize / 2, TextAlignment.CENTER, VerticalAlignment.TOP
+      ))
+      barCodeY = Mm(8f + 16.8f / 2)
+      barCodeHeight = Mm(14.8)
+      _ <- addBarCode(leftBarCode, Mm(5f + 41.8f / 2), barCodeY, Mm(41.8), barCodeHeight)
+      _ <- addBarCode(rightBarCode, rightX(Mm(5f + 45.4f / 2)), barCodeY, Mm(45.4), barCodeHeight)
+      barCodeLineY = barCodeY + barCodeHeight / 2 + Mm(2.5)
+      _ <- drawSingleLine(Mm(5), barCodeLineY, rightX(Mm(5)), barCodeLineY, lineWidth = Mm(0.4))
+
+      pageCenterX = page.getPageSize.getWidth / 2
+      recyclingSymbolWidth = Mm(6.1)
+      weeeSymbolWidth = Mm(5.7)
+      weeeSymbolY = Mm(1.9)
+      smallerSymbolY = Mm(4)
+      symbolSpacing = Mm(1)
+      _ <- SyncIO(canvas.addImageFittedIntoRectangle(
+        LabelData.ImageRecyclingSymbol,
+        new Rectangle(
+          pageCenterX - weeeSymbolWidth / 2 - recyclingSymbolWidth - symbolSpacing, smallerSymbolY,
+          recyclingSymbolWidth, Mm(5.7)
+        ), false
+      ))
+      _ <- SyncIO(canvas.addImageFittedIntoRectangle(
+        LabelData.ImageWeeeSymbol,
+        new Rectangle(pageCenterX - weeeSymbolWidth / 2, weeeSymbolY, weeeSymbolWidth, Mm(7.9)), false
+      ))
+      _ <- SyncIO(canvas.addImageFittedIntoRectangle(
+        LabelData.ImageCeSymbol,
+        new Rectangle(pageCenterX + weeeSymbolWidth / 2 + symbolSpacing, smallerSymbolY, Mm(7.5), Mm(5.7)), false
+      ))
+    } yield ()
+  }
+}
+object LabelData {
+  val ImageLogo = ImageDataFactory.createPng(getClass.getResourceAsStream("/images/logo.png").readAllBytes)
+  val ImageCeSymbol = ImageDataFactory.createJpeg(getClass.getResourceAsStream("/images/symbol-ce.jpg").readAllBytes)
+  val ImageRecyclingSymbol = ImageDataFactory.createJpeg(getClass.getResourceAsStream("/images/symbol-recycling.jpg").readAllBytes)
+  val ImageWeeeSymbol = ImageDataFactory.createPng(getClass.getResourceAsStream("/images/symbol-weee.png").readAllBytes)
+
+  def generate(datas: Vector[LabelData], pdfDoc: PdfDocument): SyncIO[Unit] = {
+    for {
+      doc <- SyncIO(new Document(pdfDoc, PageSize.A6))
+      _ <- SyncIO {
+        val docInfo = pdfDoc.getDocumentInfo
+        docInfo.setCreator("Minthive Label Generator by Artūras Šlajus <as@arturaz.net>")
+        docInfo.setProducer("https://github.com/arturaz/minthive-labelmaker")
+      }
+      fonts <- Fonts.create
+      _ <- fonts.addToDoc(pdfDoc)
+      _ <- datas.map { data =>
+        SyncIO(pdfDoc.addNewPage()).flatMap(data.render(doc, _)(using fonts))
+      }.sequence_
+    } yield ()
+  }
+
+  def readCSV(path: Path): SyncIO[ValidatedNec[String, Vector[LabelData]]] = SyncIO {
+    import com.github.tototoshi.csv.defaultCSVFormat
+
+    CSVReader.open(path.toFile).allWithHeaders().iterator.zipWithIndex.map { case (map, idx) =>
+      def get[A](field: String)(parse: String => Either[String, A]) =
+        map.get(field).toRight(s"missing field '$field'").flatMap(parse)
+          .left.map(err => s"Row index $idx: $err").toValidatedNec
+
+      (
+        get("Device Name")(Right(_)),
+        get("Condition Score")(OneToTenScore.parse),
+        get("Battery Score")(Percentage.parse),
+        get("Repair Score")(OneToTenScore.parse),
+        get("Functionality Score")(OneToTenScore.parse),
+        get("Appearance Score")(AppearanceScore.parse),
+        get("History URL")(Right(_)),
+        get("Left Barcode")(Right(_)),
+        get("Right Barcode")(Right(_))
+      ).mapN(LabelData.apply)
+    }.toVector.sequence
+  }
+}
