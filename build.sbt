@@ -1,6 +1,6 @@
 name := "minthive-labelmaker"
 maintainer := "as@arturaz.net"
-version := "1.0"
+version := "1.0.1"
 
 ThisBuild / scalaVersion := "3.3.0"
 ThisBuild / scalacOptions ++= Seq(
