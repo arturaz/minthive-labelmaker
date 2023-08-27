@@ -1,0 +1,17 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="Main" type="Application" factoryName="Application">
+    <option name="MAIN_CLASS_NAME" value="app.Main" />
+    <module name="minthive-scala" />
+    <option name="PROGRAM_PARAMETERS" value="test.csv test.pdf" />
+    <extension name="coverage">
+      <pattern>
+        <option name="PATTERN" value="app.*" />
+        <option name="ENABLED" value="true" />
+      </pattern>
+    </extension>
+    <method v="2">
+      <option name="Make" enabled="true" />
+      <option name="BSP.BeforeRunTask" enabled="true" />
+    </method>
+  </configuration>
+</component>
