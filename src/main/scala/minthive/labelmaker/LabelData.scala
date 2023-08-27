@@ -160,7 +160,7 @@ case class LabelData(
 }
 object LabelData {
   val ImageLogo = ImageDataFactory.createPng(getClass.getResourceAsStream("/images/logo.png").readAllBytes)
-  val ImageCeSymbol = ImageDataFactory.createJpeg(getClass.getResourceAsStream("/images/symbol-ce.jpg").readAllBytes)
+  val ImageCeSymbol = ImageDataFactory.createPng(getClass.getResourceAsStream("/images/symbol-ce.png").readAllBytes)
   val ImageRecyclingSymbol = ImageDataFactory.createJpeg(getClass.getResourceAsStream("/images/symbol-recycling.jpg").readAllBytes)
   val ImageWeeeSymbol = ImageDataFactory.createPng(getClass.getResourceAsStream("/images/symbol-weee.png").readAllBytes)
 
