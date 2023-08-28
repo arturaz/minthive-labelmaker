@@ -36,32 +36,36 @@ case class LabelData(
       canvas <- SyncIO(new PdfCanvas(page))
       given PdfCanvas = canvas
       _ <- SyncIO(doc.showTextAligned(
-        new Paragraph().add(new Text(deviceName).setFont(fonts.bold).setFontSize(10)).setMultipliedLeading(1.4f),
+        new Paragraph()
+          .add(new Text(deviceName).setFont(fonts.bold).setFontSize(10))
+          .setMultipliedLeading(1.4f)
+          .setMaxWidth(Mm(55)),
         Mm(5), topY(Mm(5)), TextAlignment.LEFT, VerticalAlignment.TOP
       ))
       _ <- SyncIO(canvas.addImageFittedIntoRectangle(
         LabelData.ImageLogo,
         new Rectangle(rightX(Mm(5f + 36.8f)), topY(Mm(6f + 8.2f)), Mm(36.8), Mm(8.2)), false
       ))
+      underDeviceName = topY(Mm(10))
       _ <- SyncIO(doc.showTextAligned(
         new Paragraph().add(new Text("Minthive pass").setFont(fonts.bold).setFontSize(22)),
-        Mm(5), topY(Mm(18.2)), TextAlignment.LEFT, VerticalAlignment.TOP
+        Mm(5), underDeviceName - Mm(12.2), TextAlignment.LEFT, VerticalAlignment.TOP
       ))
       h2FontSize = 14f
       _ <- SyncIO(doc.showTextAligned(
         new Paragraph().add(new Text("Overall device condition:").setFont(fonts.bold).setFontSize(h2FontSize)),
-        Mm(5), topY(Mm(28.8)), TextAlignment.LEFT, VerticalAlignment.TOP
+        Mm(5), underDeviceName - Mm(21), TextAlignment.LEFT, VerticalAlignment.TOP
       ))
-      conditionScoreIndicatorY = topY(Mm(32))
+      conditionScoreIndicatorY = underDeviceName - Mm(30)
       _ <- drawPercentageIndicator(
         rightX(Mm(20)), conditionScoreIndicatorY, radius = Mm(28.9f / 2), width = Mm(3.2), conditionScore.percentage,
         conditionScore.asString, belowText = None
       )
       _ <- drawDeviceConditionBar(
-        Mm(5.4f + 4.1f), conditionScoreIndicatorY - Mm(6.5), buttonWidth = Mm(8.2), buttonHeight = Mm(3.9),
+        Mm(5.4f + 4.1f), conditionScoreIndicatorY - Mm(2.5), buttonWidth = Mm(8.2), buttonHeight = Mm(3.9),
         borderWidth = Mm(0.4), conditionScore
       )
-      scoreBreakdownY = topY(Mm(60))
+      scoreBreakdownY = underDeviceName - Mm(50)
       _ <- SyncIO(doc.showTextAligned(
         new Paragraph().add(new Text("Condition score breakdown:").setFont(fonts.bold).setFontSize(h2FontSize)),
         Mm(5), scoreBreakdownY, TextAlignment.LEFT, VerticalAlignment.TOP
@@ -119,9 +123,9 @@ case class LabelData(
           Mm(5), evaluationLabelY - Mm(7), TextAlignment.LEFT, VerticalAlignment.TOP
         )
       }
-      qrCodeSize = Mm(16.8)
-      qrCodeCenterX = rightX(Mm(15f) + qrCodeSize / 2)
-      qrCodeCenterY = evaluationLabelY - Mm(2.5f) - qrCodeSize / 2
+      qrCodeSize = Mm(24)
+      qrCodeCenterX = rightX(qrCodeSize)
+      qrCodeCenterY = evaluationLabelY + Mm(1.5f) - qrCodeSize / 2
       _ <- addQrCode(historyUrl, qrCodeCenterX, qrCodeCenterY, qrCodeSize, qrCodeSize)
       _ <- SyncIO(doc.showTextAligned(
         new Paragraph("CHECK HISTORY").setFont(fonts.bold).setFontSize(10),
@@ -161,7 +165,7 @@ case class LabelData(
 object LabelData {
   val ImageLogo = ImageDataFactory.createPng(getClass.getResourceAsStream("/images/logo.png").readAllBytes)
   val ImageCeSymbol = ImageDataFactory.createPng(getClass.getResourceAsStream("/images/symbol-ce.png").readAllBytes)
-  val ImageRecyclingSymbol = ImageDataFactory.createJpeg(getClass.getResourceAsStream("/images/symbol-recycling.jpg").readAllBytes)
+  val ImageRecyclingSymbol = ImageDataFactory.createPng(getClass.getResourceAsStream("/images/symbol-recycling.png").readAllBytes)
   val ImageWeeeSymbol = ImageDataFactory.createPng(getClass.getResourceAsStream("/images/symbol-weee.png").readAllBytes)
 
   def generate(datas: Vector[LabelData], pdfDoc: PdfDocument): SyncIO[Unit] = {

@@ -4,9 +4,9 @@ import utils.*
 
 /** Range: 1-10, inclusive. */
 case class OneToTenScore private (score: Double) extends AnyVal {
-  def percentage: Percentage = Percentage((score - 1) / 10).get
+  def percentage: Percentage = Percentage(score / 10).get
 
-  def asString: String  = if (score == 10) "10" else f"${score}%.1f"
+  def asString: String  = if (score == 10) "10" else f"$score%.1f"
 }
 object OneToTenScore {
   given Conversion[OneToTenScore, Double] = _.score
