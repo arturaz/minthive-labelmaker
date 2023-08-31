@@ -63,7 +63,7 @@ case class LabelData(
       )
       _ <- drawDeviceConditionBar(
         Mm(5.4f + 4.1f), conditionScoreIndicatorY - Mm(2.5), buttonWidth = Mm(8.2), buttonHeight = Mm(3.9),
-        borderWidth = Mm(0.4), conditionScore
+        borderWidth = Mm(0.4), conditionScore.roundedAsString
       )
       scoreBreakdownY = underDeviceName - Mm(50)
       _ <- SyncIO(doc.showTextAligned(

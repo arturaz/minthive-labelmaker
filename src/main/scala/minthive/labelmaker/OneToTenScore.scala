@@ -6,6 +6,9 @@ import utils.*
 case class OneToTenScore private (score: Double) extends AnyVal {
   def percentage: Percentage = Percentage(score / 10).get
 
+  /** Rounds the value to the same representation as [[asString]] uses. */
+  def roundedAsString: OneToTenScore = new OneToTenScore(f"$score%.1f".toDouble)
+
   def asString: String  = if (score == 10) "10" else f"$score%.1f"
 }
 object OneToTenScore {
