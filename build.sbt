@@ -1,13 +1,14 @@
 name := "labelmaker"
 organization := "minthive"
 maintainer := "as@arturaz.net"
-version := "1.0.3"
+version := "1.0.4"
 
 ThisBuild / scalaVersion := "3.3.0"
 ThisBuild / scalacOptions ++= Seq(
   "-feature",
   "-deprecation",
   "-language:implicitConversions",
+  "-language:strictEquality",
 )
 
 libraryDependencies ++= Seq(

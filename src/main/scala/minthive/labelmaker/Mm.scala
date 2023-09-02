@@ -1,6 +1,6 @@
 package minthive.labelmaker
 
-case class Mm(mm: Float) extends AnyVal {
+case class Mm(mm: Float) extends AnyVal derives CanEqual {
   def +(other: Mm): Mm = Mm(mm + other.mm)
   def -(other: Mm): Mm = Mm(mm - other.mm)
   def *(multiplier: Float): Mm = Mm(mm * multiplier)

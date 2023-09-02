@@ -2,7 +2,7 @@ package minthive.labelmaker
 
 import utils.*
 
-enum AppearanceScore {
+enum AppearanceScore derives CanEqual {
   case A, `B+`, B, `C+`, C
 
   def toPercentage: Percentage = (this match {

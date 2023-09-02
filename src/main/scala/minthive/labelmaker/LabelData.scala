@@ -27,7 +27,7 @@ case class LabelData(
   historyUrl: String,
   leftBarCode: String,
   rightBarCode: String,
-) {
+) derives CanEqual {
   def render(doc: Document, page: PdfPage)(using fonts: Fonts): SyncIO[Unit] = {
     given Document = doc
     given PdfPage = page

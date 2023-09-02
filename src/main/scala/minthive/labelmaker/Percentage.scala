@@ -3,7 +3,7 @@ package minthive.labelmaker
 import utils.*
 
 /** Range: 0 to 1, inclusive. */
-case class Percentage private (value: Double) extends AnyVal {
+case class Percentage private (value: Double) extends AnyVal derives CanEqual {
   def +(other: Percentage): Percentage = Percentage(value + other.value).get
 }
 object Percentage {
