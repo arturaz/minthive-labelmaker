@@ -9,6 +9,7 @@ ThisBuild / scalacOptions ++= Seq(
   "-deprecation",
   "-language:implicitConversions",
   "-language:strictEquality",
+  "-Xfatal-warnings",
 )
 
 libraryDependencies ++= Seq(
