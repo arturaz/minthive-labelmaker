@@ -1,6 +1,6 @@
 package minthive.labelmaker
 
-import utils.*
+import minthive.utils.*
 
 /** Range: 0 to 1, inclusive. */
 case class Percentage private (value: Double) extends AnyVal derives CanEqual {

@@ -1,4 +1,4 @@
-package utils
+package minthive.utils
 
 extension [A, B](e: Either[A, B]) {
   def get: B = e match {
