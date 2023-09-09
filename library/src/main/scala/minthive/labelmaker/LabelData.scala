@@ -1,6 +1,6 @@
 package minthive.labelmaker
 
-import cats.effect.SyncIO
+import cats.effect.{IO, SyncIO}
 import cats.syntax.all.*
 import com.itextpdf.io.image.ImageDataFactory
 import com.itextpdf.kernel.font.PdfFont
@@ -164,18 +164,23 @@ object LabelData {
   val ImageRecyclingSymbol = ImageDataFactory.createPng(getClass.getResourceAsStream("/images/symbol-recycling.png").readAllBytes)
   val ImageWeeeSymbol = ImageDataFactory.createPng(getClass.getResourceAsStream("/images/symbol-weee.png").readAllBytes)
 
-  def generate(datas: Vector[LabelData], pdfDoc: PdfDocument): SyncIO[Unit] = {
+  /**
+   * @note This returns [[IO]] instead of [[SyncIO]] because big document generations take a lot of time and then we
+   *       hit fairness issues. See [[https://typelevel.org/cats-effect/docs/thread-model#fibers]] for more information.
+   */
+  def generate(datas: Vector[LabelData], pdfDoc: PdfDocument): IO[Unit] = {
     for {
-      doc <- SyncIO(new Document(pdfDoc, PageSize.A6))
-      _ <- SyncIO {
+      doc <- IO {
+        val doc = new Document(pdfDoc, PageSize.A6)
         val docInfo = pdfDoc.getDocumentInfo
         docInfo.setCreator("Minthive Label Generator by Artūras Šlajus <as@arturaz.net>")
         docInfo.setProducer("https://github.com/arturaz/minthive-labelmaker")
+        doc
       }
-      fonts <- Fonts.create
-      _ <- fonts.addToDoc(pdfDoc)
+      fonts <- Fonts.create.to[IO]
+      _ <- fonts.addToDoc(pdfDoc).to[IO]
       _ <- datas.map { data =>
-        SyncIO(pdfDoc.addNewPage()).flatMap(data.render(doc, _)(using fonts))
+        IO(pdfDoc.addNewPage()).flatMap(data.render(doc, _)(using fonts).to[IO])
       }.sequence_
     } yield ()
   }

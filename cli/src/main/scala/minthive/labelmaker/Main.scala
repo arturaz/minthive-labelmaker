@@ -2,11 +2,13 @@ package minthive.labelmaker
 
 import cats.data.Validated
 import cats.effect.*
+import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.itextpdf.kernel.pdf.{PdfDocument, PdfWriter}
 import minthive.labelmaker.{AppearanceScore, LabelData, OneToTenScore, Percentage}
 import minthive.utils.*
 
+import java.io.File
 import java.nio.file.Paths
 import java.util.Locale
 
@@ -18,13 +20,14 @@ object Main extends IOApp {
           SyncIO(Paths.get(input))
             .flatTap(path => SyncIO(println(s"Reading inputs from $path")))
             .flatMap(LabelDataCSVReader.readCSV)
+            .to[IO]
 
         readInputsIO.flatMap {
           case Validated.Valid(labels) =>
-            render(output, labels).as(ExitCode.Success)
+            render(Paths.get(output).toFile, labels).as(ExitCode.Success)
 
           case Validated.Invalid(errors) =>
-            SyncIO {
+            IO {
               Console.err.println("Errors:")
               Console.err.println("")
               errors.iterator.foreach { error =>
@@ -32,21 +35,21 @@ object Main extends IOApp {
               }
               ExitCode.Error
             }
-        }.to[IO]
+        }
       case _ =>
         IO(println("Usage: minthive-labelmaker <input.csv> <output.pdf>")).as(ExitCode.Error)
     }
   }
 
-  def render(output: String, labels: Vector[LabelData]): SyncIO[Unit] = {
+  def render(output: File, labels: Vector[LabelData]): IO[Unit] = {
     val resource = for {
-      _ <- Resource.eval(SyncIO(println(s"Writing output to $output")))
-      pdfWriter <- Resource.make(SyncIO(new PdfWriter(output)))(writer => SyncIO(writer.close()))
-      pdfDoc <- Resource.make(SyncIO(new PdfDocument(pdfWriter)))(doc => SyncIO(doc.close()))
-      _ <- Resource.eval(SyncIO(Locale.setDefault(Locale.US)))
+      _ <- Resource.eval(IO(println(s"Writing output to $output")))
+      pdfWriter <- Resource.make(IO(new PdfWriter(output)))(writer => IO(writer.close()))
+      pdfDoc <- Resource.make(IO(new PdfDocument(pdfWriter)))(doc => IO(doc.close()))
+      _ <- Resource.eval(IO(Locale.setDefault(Locale.US)))
       _ <- Resource.eval(LabelData.generate(labels, pdfDoc))
     } yield ()
 
-    resource.use(_ => SyncIO(println("Done.")))
+    resource.use(_ => IO(println("Done.")))
   }
 }

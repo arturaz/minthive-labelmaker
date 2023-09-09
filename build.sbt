@@ -1,5 +1,5 @@
 name := "labelmaker"
-organization := "minthive"
+ThisBuild / organization := "minthive"
 
 ThisBuild / scalaVersion := "3.3.0"
 ThisBuild / scalacOptions ++= Seq(
@@ -10,7 +10,7 @@ ThisBuild / scalacOptions ++= Seq(
   "-Xfatal-warnings",
 )
 
-val Version = "1.0.6"
+val Version = "1.0.7"
 
 lazy val library = project
   .in(file("library"))
