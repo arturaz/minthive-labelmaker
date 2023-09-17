@@ -6,7 +6,6 @@ import cats.effect.std.Dispatcher
 import cats.syntax.all.*
 import com.itextpdf.kernel.pdf.{PdfDocument, PdfWriter}
 import minthive.labelmaker.{AppearanceScore, LabelData, OneToTenScore, Percentage}
-import minthive.utils.*
 
 import java.io.File
 import java.nio.file.Paths

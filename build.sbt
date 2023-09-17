@@ -10,7 +10,7 @@ ThisBuild / scalacOptions ++= Seq(
   "-Xfatal-warnings",
 )
 
-val Version = "1.0.8"
+val Version = "1.0.9"
 
 lazy val library = project
   .in(file("library"))

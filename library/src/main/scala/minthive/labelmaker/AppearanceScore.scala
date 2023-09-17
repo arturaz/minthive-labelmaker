@@ -1,6 +1,6 @@
 package minthive.labelmaker
 
-import minthive.utils.*
+import minthive.labelmaker.utils.*
 
 enum AppearanceScore derives CanEqual {
   case `A+`, A, `B+`, B, `C+`, C

@@ -1,4 +1,4 @@
-package minthive.utils
+package minthive.labelmaker.utils
 
 extension [A, B](e: Either[A, B]) {
   def get: B = e match {

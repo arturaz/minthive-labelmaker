@@ -1,6 +1,6 @@
 package minthive.labelmaker
 
-import minthive.utils.*
+import minthive.labelmaker.utils.*
 
 /** Range: 1-10, inclusive. */
 case class OneToTenScore private (score: Double) extends AnyVal derives CanEqual {
