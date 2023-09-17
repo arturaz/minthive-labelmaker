@@ -180,7 +180,7 @@ object LabelData {
       fonts <- Fonts.create.to[IO]
       _ <- fonts.addToDoc(pdfDoc).to[IO]
       _ <- datas.map { data =>
-        IO(pdfDoc.addNewPage()).flatMap(data.render(doc, _)(using fonts).to[IO])
+        IO.cede *> IO(pdfDoc.addNewPage()).flatMap(data.render(doc, _)(using fonts).to[IO]).guarantee(IO.cede)
       }.sequence_
     } yield ()
   }
