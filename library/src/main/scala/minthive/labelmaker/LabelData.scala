@@ -1,7 +1,5 @@
 package minthive.labelmaker
 
-import cats.effect.{IO, SyncIO}
-import cats.syntax.all.*
 import com.itextpdf.io.image.ImageDataFactory
 import com.itextpdf.kernel.font.PdfFont
 import com.itextpdf.kernel.geom.{PageSize, Rectangle}
@@ -10,6 +8,7 @@ import com.itextpdf.kernel.pdf.{PdfDocument, PdfPage}
 import com.itextpdf.layout.Document
 import com.itextpdf.layout.element.{Paragraph, Text}
 import com.itextpdf.layout.properties.{TextAlignment, VerticalAlignment}
+import zio.{Task, ZIO}
 
 
 /** Data to be printed on the label. */
@@ -24,31 +23,31 @@ case class LabelData(
   leftBarCode: String,
   rightBarCode: String,
 ) derives CanEqual {
-  def render(doc: Document, page: PdfPage)(using fonts: Fonts): SyncIO[Unit] = {
+  def render(doc: Document, page: PdfPage)(using fonts: Fonts): Task[Unit] = {
     given Document = doc
     given PdfPage = page
 
     for {
-      canvas <- SyncIO(new PdfCanvas(page))
+      canvas <- ZIO.attempt(new PdfCanvas(page))
       given PdfCanvas = canvas
-      _ <- SyncIO(doc.showTextAligned(
+      _ <- ZIO.attempt(doc.showTextAligned(
         new Paragraph()
           .add(new Text(deviceName).setFont(fonts.bold).setFontSize(10))
           .setMultipliedLeading(1.4f)
           .setMaxWidth(Mm(55)),
         Mm(5), topY(Mm(5)), TextAlignment.LEFT, VerticalAlignment.TOP
       ))
-      _ <- SyncIO(canvas.addImageFittedIntoRectangle(
+      _ <- ZIO.attempt(canvas.addImageFittedIntoRectangle(
         LabelData.ImageLogo,
         new Rectangle(rightX(Mm(5f + 36.8f)), topY(Mm(6f + 8.2f)), Mm(36.8), Mm(8.2)), false
       ))
       underDeviceName = topY(Mm(10))
-      _ <- SyncIO(doc.showTextAligned(
+      _ <- ZIO.attempt(doc.showTextAligned(
         new Paragraph().add(new Text("Minthive pass").setFont(fonts.bold).setFontSize(22)),
         Mm(5), underDeviceName - Mm(12.2), TextAlignment.LEFT, VerticalAlignment.TOP
       ))
       h2FontSize = 14f
-      _ <- SyncIO(doc.showTextAligned(
+      _ <- ZIO.attempt(doc.showTextAligned(
         new Paragraph().add(new Text("Overall device condition:").setFont(fonts.bold).setFontSize(h2FontSize)),
         Mm(5), underDeviceName - Mm(21), TextAlignment.LEFT, VerticalAlignment.TOP
       ))
@@ -62,7 +61,7 @@ case class LabelData(
         borderWidth = Mm(0.4), conditionScore.roundedAsString
       )
       scoreBreakdownY = underDeviceName - Mm(50)
-      _ <- SyncIO(doc.showTextAligned(
+      _ <- ZIO.attempt(doc.showTextAligned(
         new Paragraph().add(new Text("Condition score breakdown:").setFont(fonts.bold).setFontSize(h2FontSize)),
         Mm(5), scoreBreakdownY, TextAlignment.LEFT, VerticalAlignment.TOP
       ))
@@ -92,12 +91,12 @@ case class LabelData(
         functionalityScore.percentage, functionalityScore.asString, belowText = Some("Functionality\nscore")
       )
       evaluationLabelY = scoreBreakdownIndicatorsY - Mm(18)
-      _ <- SyncIO(doc.showTextAligned(
+      _ <- ZIO.attempt(doc.showTextAligned(
         new Paragraph().add(new Text("Minthive evaluation").setFont(fonts.bold).setFontSize(h2FontSize)),
         Mm(5), evaluationLabelY, TextAlignment.LEFT, VerticalAlignment.TOP
       ))
       textFontSize = 8f
-      _ <- SyncIO {
+      _ <- ZIO.attempt {
         def text(str: String, font: PdfFont = fonts.normal) =
           new Text(str).setFont(font).setFontSize(textFontSize)
 
@@ -123,7 +122,7 @@ case class LabelData(
       qrCodeCenterX = rightX(qrCodeSize)
       qrCodeCenterY = evaluationLabelY + Mm(1.5f) - qrCodeSize / 2
       _ <- addQrCode(historyUrl, qrCodeCenterX, qrCodeCenterY, qrCodeSize, qrCodeSize)
-      _ <- SyncIO(doc.showTextAligned(
+      _ <- ZIO.attempt(doc.showTextAligned(
         new Paragraph("CHECK HISTORY").setFont(fonts.bold).setFontSize(10),
         qrCodeCenterX, qrCodeCenterY - qrCodeSize / 2, TextAlignment.CENTER, VerticalAlignment.TOP
       ))
@@ -140,18 +139,18 @@ case class LabelData(
       weeeSymbolY = Mm(1.9)
       smallerSymbolY = Mm(4)
       symbolSpacing = Mm(1)
-      _ <- SyncIO(canvas.addImageFittedIntoRectangle(
+      _ <- ZIO.attempt(canvas.addImageFittedIntoRectangle(
         LabelData.ImageRecyclingSymbol,
         new Rectangle(
           pageCenterX - weeeSymbolWidth / 2 - recyclingSymbolWidth - symbolSpacing, smallerSymbolY,
           recyclingSymbolWidth, Mm(5.7)
         ), false
       ))
-      _ <- SyncIO(canvas.addImageFittedIntoRectangle(
+      _ <- ZIO.attempt(canvas.addImageFittedIntoRectangle(
         LabelData.ImageWeeeSymbol,
         new Rectangle(pageCenterX - weeeSymbolWidth / 2, weeeSymbolY, weeeSymbolWidth, Mm(7.9)), false
       ))
-      _ <- SyncIO(canvas.addImageFittedIntoRectangle(
+      _ <- ZIO.attempt(canvas.addImageFittedIntoRectangle(
         LabelData.ImageCeSymbol,
         new Rectangle(pageCenterX + weeeSymbolWidth / 2 + symbolSpacing, smallerSymbolY, Mm(7.5), Mm(5.7)), false
       ))
@@ -168,20 +167,20 @@ object LabelData {
    * @note This returns [[IO]] instead of [[SyncIO]] because big document generations take a lot of time and then we
    *       hit fairness issues. See [[https://typelevel.org/cats-effect/docs/thread-model#fibers]] for more information.
    */
-  def generate(datas: Vector[LabelData], pdfDoc: PdfDocument): IO[Unit] = {
+  def generate(datas: Vector[LabelData], pdfDoc: PdfDocument): Task[Unit] = {
     for {
-      doc <- IO {
+      doc <- ZIO.attempt {
         val doc = new Document(pdfDoc, PageSize.A6)
         val docInfo = pdfDoc.getDocumentInfo
         docInfo.setCreator("Minthive Label Generator by Artūras Šlajus <as@arturaz.net>")
         docInfo.setProducer("https://github.com/arturaz/minthive-labelmaker")
         doc
       }
-      fonts <- Fonts.create.to[IO]
-      _ <- fonts.addToDoc(pdfDoc).to[IO]
-      _ <- datas.map { data =>
-        IO.cede *> IO(pdfDoc.addNewPage()).flatMap(data.render(doc, _)(using fonts).to[IO]).guarantee(IO.cede)
-      }.sequence_
+      fonts <- Fonts.create
+      _ <- fonts.addToDoc(pdfDoc)
+      _ <- ZIO.collectAll(datas.map { data =>
+        ZIO.yieldNow *> ZIO.attempt(pdfDoc.addNewPage()).flatMap(data.render(doc, _)(using fonts)).ensuring(ZIO.yieldNow)
+      })
     } yield ()
   }
 }

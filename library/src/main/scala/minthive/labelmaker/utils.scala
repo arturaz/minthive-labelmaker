@@ -1,6 +1,5 @@
 package minthive.labelmaker
 
-import cats.effect.SyncIO
 import com.itextpdf.barcodes.{Barcode128, BarcodeQRCode}
 import com.itextpdf.kernel.colors.{Color, DeviceRgb}
 import com.itextpdf.kernel.geom.Rectangle
@@ -9,6 +8,7 @@ import com.itextpdf.kernel.pdf.canvas.PdfCanvas
 import com.itextpdf.layout.Document
 import com.itextpdf.layout.element.{Image, Paragraph}
 import com.itextpdf.layout.properties.{TextAlignment, VerticalAlignment}
+import zio.{Task, ZIO}
 
 import scala.annotation.targetName
 
@@ -61,7 +61,7 @@ def circlePoints(
 
 def drawCircle(
   points: Iterable[(Float, Float)], fillColor: Color
-)(using canvas: PdfCanvas): SyncIO[Unit] = SyncIO {
+)(using canvas: PdfCanvas): Task[Unit] = ZIO.attempt {
   canvas.setLineWidth(0)
   canvas.setFillColor(fillColor)
   canvas.moveTo(points.head._1, points.head._2)
@@ -75,7 +75,7 @@ def drawCircle(
 def drawPercentageIndicator(
   centerX: Float, centerY: Float, radius: Float, width: Float, percentage: Percentage, text: String,
   belowText: Option[String]
-)(using doc: Document, canvas: PdfCanvas, fonts: Fonts): SyncIO[Unit] = {
+)(using doc: Document, canvas: PdfCanvas, fonts: Fonts): Task[Unit] = {
   for {
     _ <- drawCircle(circlePoints(centerX, centerY, radius, width, Percentage._0, percentage), Black)
     threshold = 0.99
@@ -83,13 +83,13 @@ def drawPercentageIndicator(
       if (percentage < threshold) drawCircle(
         circlePoints(centerX, centerY, radius, width, percentage + Percentage._0_05, Percentage._99_5), Grey
       )
-      else SyncIO.unit
-    _ <- SyncIO(doc.showTextAligned(
+      else ZIO.unit
+    _ <- ZIO.attempt(doc.showTextAligned(
       new Paragraph(text).setFontSize(radius * 0.6f).setFont(fonts.bold),
       centerX, centerY, TextAlignment.CENTER, VerticalAlignment.MIDDLE
     ))
-    _ <- belowText.fold(SyncIO.unit) { text =>
-      SyncIO(doc.showTextAligned(
+    _ <- belowText.fold(ZIO.unit) { text =>
+      ZIO.attempt(doc.showTextAligned(
         new Paragraph(text).setFontSize(radius * 0.4f).setFont(fonts.normal),
         centerX, centerY - radius * 1.3f, TextAlignment.CENTER, VerticalAlignment.TOP
       ))
@@ -154,32 +154,32 @@ def roundedRectanglePoints(
 
 def drawSingleLine(
   fromX: Float, fromY: Float, toX: Float, toY: Float, lineWidth: Float
-)(using canvas: PdfCanvas): SyncIO[Unit] =
+)(using canvas: PdfCanvas): Task[Unit] =
   for {
-    _ <- SyncIO(canvas.setLineWidth(lineWidth))
-    _ <- SyncIO(canvas.moveTo(fromX, fromY))
-    _ <- SyncIO(canvas.lineTo(toX, toY))
-    _ <- SyncIO(canvas.fillStroke())
+    _ <- ZIO.attempt(canvas.setLineWidth(lineWidth))
+    _ <- ZIO.attempt(canvas.moveTo(fromX, fromY))
+    _ <- ZIO.attempt(canvas.lineTo(toX, toY))
+    _ <- ZIO.attempt(canvas.fillStroke())
   } yield ()
 
 def drawDeviceConditionBar(
   startX: Float, startY: Float, buttonWidth: Float, buttonHeight: Float, borderWidth: Float,
   deviceCondition: OneToTenScore
-)(using doc: Document, fonts: Fonts, canvas: PdfCanvas): SyncIO[Unit] = {
+)(using doc: Document, fonts: Fonts, canvas: PdfCanvas): Task[Unit] = {
   def drawButton(
     scoreText: String, selected: Boolean, x: Float, y: Float
-  ): SyncIO[Unit] = {
+  ): Task[Unit] = {
     for {
       _ <- drawCircle(
         roundedRectanglePoints(x, y, buttonWidth, buttonHeight, if (selected) None else Some(borderWidth)),
         Black
       )
-      _ <- SyncIO(canvas.setFillColor(if (selected) White else Black))
-      _ <- SyncIO(doc.showTextAligned(
+      _ <- ZIO.attempt(canvas.setFillColor(if (selected) White else Black))
+      _ <- ZIO.attempt(doc.showTextAligned(
         new Paragraph(scoreText).setFontSize(buttonHeight * 0.6f).setFont(fonts.bold),
         x, y, TextAlignment.CENTER, VerticalAlignment.MIDDLE
       ))
-      _ <- SyncIO(canvas.setFillColor(Black))
+      _ <- ZIO.attempt(canvas.setFillColor(Black))
     } yield ()
   }
 
@@ -200,12 +200,12 @@ def drawDeviceConditionBar(
     lineStartY = startY - buttonHeight / 2 - lineSpacing
     lineEndY = startY - buttonHeight / 2 - lineSpacing - lineLength
     _ <- drawSingleLine(startX, lineStartY, startX, lineEndY, lineWidth = lineWidth)
-    _ <- SyncIO(doc.showTextAligned(
+    _ <- ZIO.attempt(doc.showTextAligned(
       new Paragraph("Broken\ndevice").setFontSize(lineTextSize).setFont(fonts.normal),
       startX, lineEndY - lineSpacing, TextAlignment.CENTER, VerticalAlignment.TOP
     ))
     _ <- drawSingleLine(endX, lineStartY, endX, lineEndY, lineWidth = lineWidth)
-    _ <- SyncIO(doc.showTextAligned(
+    _ <- ZIO.attempt(doc.showTextAligned(
       new Paragraph("New\ndevice").setFontSize(lineTextSize).setFont(fonts.normal),
       endX, lineEndY - lineSpacing, TextAlignment.CENTER, VerticalAlignment.TOP
     ))
@@ -214,7 +214,7 @@ def drawDeviceConditionBar(
 
 def addQrCode(
   contents: String, centerX: Float, centerY: Float, width: Float, height: Float
-)(using doc: Document, canvas: PdfCanvas): SyncIO[Unit] = SyncIO {
+)(using doc: Document, canvas: PdfCanvas): Task[Unit] = ZIO.attempt {
   val rectangle = new Rectangle(centerX - width / 2, centerY - height / 2, width, height)
   val qrCode = new BarcodeQRCode(contents)
   val formXObject = qrCode.createFormXObject(Black, doc.getPdfDocument)
@@ -223,7 +223,7 @@ def addQrCode(
 
 def addBarCode(
   contents: String, centerX: Float, centerY: Float, width: Float, height: Float
-)(using doc: Document, canvas: PdfCanvas, fonts: Fonts): SyncIO[Unit] = SyncIO {
+)(using doc: Document, canvas: PdfCanvas, fonts: Fonts): Task[Unit] = ZIO.attempt {
   val rectangle = new Rectangle(centerX - width / 2, centerY - height / 2, width, height)
   val barCode = new Barcode128(doc.getPdfDocument)
   barCode.setCode(contents)

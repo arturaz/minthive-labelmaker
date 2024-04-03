@@ -19,7 +19,8 @@ lazy val library = project
     version := Version,
     libraryDependencies ++= Seq(
       "com.itextpdf" % "itext7-core" % "8.0.2",
-      "org.typelevel" %% "cats-effect" % "3.5.1",
+      "dev.zio" %% "zio" % "2.1-RC1",
+      "dev.zio" %% "zio-prelude" % "1.0.0-RC23",
     )
   )
 

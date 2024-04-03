@@ -2,7 +2,7 @@
   <configuration default="false" name="Main" type="Application" factoryName="Application">
     <option name="MAIN_CLASS_NAME" value="minthive.labelmaker.Main" />
     <module name="cli" />
-    <option name="PROGRAM_PARAMETERS" value="test.csv test.pdf" />
+    <option name="PROGRAM_PARAMETERS" value="..\test.csv test.pdf" />
     <option name="WORKING_DIRECTORY" value="$ProjectFileDir$" />
     <extension name="coverage">
       <pattern>
